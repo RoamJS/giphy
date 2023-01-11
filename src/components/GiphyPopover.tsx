@@ -86,6 +86,8 @@ const GiphyPopover: React.FunctionComponent<{
         </div>
       }
       portalClassName={"roamjs-giphy-portal"}
+      enforceFocus={false}
+      autoFocus={false}
     />
   );
 };
