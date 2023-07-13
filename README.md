@@ -12,4 +12,4 @@ For example, typing `{{GIPHY:jumping cat}}` and clicking on the first result wil
 
 ## Demo
 
-<video src="https://firebasestorage.googleapis.com/v0/b/firescript-577a2.appspot.com/o/imgs%2Fapp%2Froamjs%2Fz3FiE3zwIl.mp4?alt=media&token=c6d39719-d305-47ba-9716-177d201d5ac8" controls="controls" height="600"></video>
+![roamjs-giphy-demo-720](https://github.com/RoamJS/giphy/assets/3792666/dd0f7dd8-d3c8-4001-b0e2-942c91ff9a94)
