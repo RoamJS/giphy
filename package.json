@@ -14,7 +14,7 @@
   "dependencies": {
     "@giphy/js-fetch-api": "^4.4.0",
     "@giphy/react-components": "^6.2.0",
-    "roamjs-components": "^0.80.3"
+    "roamjs-components": "^0.82.0"
   },
   "samepage": {
     "extends": "node_modules/roamjs-components/package.json"
