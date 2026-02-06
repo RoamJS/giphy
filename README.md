@@ -1,6 +1,12 @@
+<a href="https://roamjs.com/">
+    <img src="https://avatars.githubusercontent.com/u/138642184" alt="RoamJS Logo" title="RoamJS" align="right" height="60" />
+</a>
+
 # Giphy
 
-Quickly insert GIFs from Giphy into Roam!
+**Quickly insert GIFs and MEMEs into Roam without leaving the editor.**
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoamJS/giphy)
 
 ## Usage
 
