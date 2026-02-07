@@ -443,6 +443,19 @@ export const initGiphyOverlay = (): void => {
   ReactDOM.render(<GiphyOverlay />, rootEl);
 };
 
+export const teardownGiphyOverlay = (): void => {
+  if (!rootEl) {
+    pendingOpen = null;
+    controller = null;
+    return;
+  }
+  ReactDOM.unmountComponentAtNode(rootEl);
+  rootEl.remove();
+  rootEl = null;
+  pendingOpen = null;
+  controller = null;
+};
+
 export const openGiphyPicker = (context: OpenContext): void => {
   initGiphyOverlay();
   if (controller) {
