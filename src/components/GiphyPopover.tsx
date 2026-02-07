@@ -1,102 +1,360 @@
-import { Popover, Position } from "@blueprintjs/core";
-import React, { useCallback, useEffect, useState } from "react";
+import {
+  Button,
+  Card,
+  Dialog,
+  Elevation,
+  InputGroup,
+  Spinner,
+} from "@blueprintjs/core";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { IGif } from "@giphy/js-types";
 import { GiphyFetch } from "@giphy/js-fetch-api";
-import { Carousel } from "@giphy/react-components";
-import getUids from "roamjs-components/dom/getUids";
+import { IGif } from "@giphy/js-types";
 import getTextByBlockUid from "roamjs-components/queries/getTextByBlockUid";
 
-const PREFIX = "{{GIPHY:";
-const SUFFIX = "}}";
-const GIPHY_REGEX = new RegExp(`${PREFIX}(.*)${SUFFIX}`, "si");
+type OpenContext = {
+  blockUid?: string;
+  insertAt: number;
+};
+
+type OverlayController = {
+  open: (context: OpenContext) => void;
+  close: () => void;
+};
 
 const gf = new GiphyFetch("NUeKPL1mNJZJmI2FOP69LA6Np5hIQdXS");
-const getMatch = (textarea: HTMLTextAreaElement) =>
-  textarea.value.match(GIPHY_REGEX);
+const GIPHY_API_PAUSED = false;
 
-const GiphyPopover: React.FunctionComponent<{
-  textarea: HTMLTextAreaElement;
-}> = ({ textarea }) => {
-  const [search, setSearch] = useState("");
+let rootEl: HTMLDivElement | null = null;
+let controller: OverlayController | null = null;
+let pendingOpen: OpenContext | null = null;
+
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(n, max));
+
+const GiphyOverlay = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const fetcher = useCallback(() => gf.search(search), [search]);
-  const onGifClick = useCallback(
-    async (gif: IGif, e: React.SyntheticEvent<HTMLElement, Event>) => {
-      const { blockUid } = getUids(textarea);
-      const value = getTextByBlockUid(blockUid);
-      const newValue = value.replace(
-        GIPHY_REGEX,
-        `![${gif.title}](${gif.images.original.url})`
-      );
-      window.roamAlphaAPI.updateBlock({
-        block: { string: newValue, uid: blockUid },
+  const [context, setContext] = useState<OpenContext | null>(null);
+  const [search, setSearch] = useState("");
+  const [gifs, setGifs] = useState<IGif[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [nonce, setNonce] = useState(0);
+  const requestRef = useRef(0);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const columns = 5;
+
+  const close = useCallback(() => {
+    setIsOpen(false);
+  }, [setIsOpen]);
+
+  const insertGif = useCallback(
+    async (gif: IGif) => {
+      if (!context?.blockUid) {
+        setError("No target block found for GIF insertion.");
+        return;
+      }
+      const value = getTextByBlockUid(context.blockUid) || "";
+      const position = clamp(context.insertAt, 0, value.length);
+      const gifMarkdown = `![${gif.title}](${gif.images.original.url})`;
+      const newValue = `${value.slice(0, position)}${gifMarkdown}${value.slice(
+        position
+      )}`;
+      await window.roamAlphaAPI.updateBlock({
+        block: { string: newValue, uid: context.blockUid },
       });
-      e.stopPropagation();
-      e.preventDefault();
       setIsOpen(false);
+      searchInputRef.current?.blur();
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
     },
-    [textarea, setIsOpen]
+    [context]
   );
-  const inputListener = useCallback(
-    (e: InputEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === "TEXTAREA") {
-        const textarea = target as HTMLTextAreaElement;
-        const match = getMatch(textarea);
-        if (match) {
-          const { index } = match;
-          const full = match[0];
-          const cursorPosition = textarea.selectionStart;
-          if (
-            cursorPosition > index + PREFIX.length &&
-            cursorPosition <= index + full.length - SUFFIX.length
-          ) {
-            setSearch(match[1]);
-            setIsOpen(!!match[1]);
-            return;
-          }
+
+  const onSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close();
+        return;
+      }
+      if (!gifs.length) {
+        return;
+      }
+      let nextIndex = selectedIndex;
+      if (e.key === "ArrowRight") {
+        nextIndex = Math.min(gifs.length - 1, selectedIndex + 1);
+      } else if (e.key === "ArrowLeft") {
+        nextIndex = Math.max(0, selectedIndex - 1);
+      } else if (e.key === "ArrowDown") {
+        nextIndex = Math.min(gifs.length - 1, selectedIndex + columns);
+      } else if (e.key === "ArrowUp") {
+        nextIndex = Math.max(0, selectedIndex - columns);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        void insertGif(gifs[selectedIndex]);
+        return;
+      } else {
+        return;
+      }
+      e.preventDefault();
+      setSelectedIndex(nextIndex);
+    },
+    [close, columns, gifs, insertGif, selectedIndex]
+  );
+
+  useEffect(() => {
+    controller = {
+      open: (nextContext: OpenContext) => {
+        setContext(nextContext);
+        setSearch("");
+        setSelectedIndex(0);
+        setError("");
+        setNonce((n) => n + 1);
+        setIsOpen(true);
+      },
+      close,
+    };
+    if (pendingOpen) {
+      const pending = pendingOpen;
+      pendingOpen = null;
+      controller.open(pending);
+    }
+    return () => {
+      if (controller?.close === close) {
+        controller = null;
+      }
+    };
+  }, [close]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    const timeout = window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(timeout);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    if (GIPHY_API_PAUSED) {
+      setIsLoading(false);
+      setGifs([]);
+      setSelectedIndex(0);
+      setError("GIPHY API paused due to rate limiting.");
+      return;
+    }
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+    setIsLoading(true);
+    setError("");
+    const load = async () => {
+      try {
+        const result = search.trim()
+          ? await gf.search(search.trim(), { limit: 24 })
+          : await gf.trending({ limit: 24 });
+        if (requestRef.current !== requestId) {
+          return;
+        }
+        setGifs(result.data || []);
+        setSelectedIndex(0);
+      } catch (_e) {
+        if (requestRef.current !== requestId) {
+          return;
+        }
+        setGifs([]);
+        setError("Failed to load GIFs.");
+      } finally {
+        if (requestRef.current === requestId) {
+          setIsLoading(false);
         }
       }
-      setSearch("");
-      setIsOpen(false);
-    },
-    [setSearch, setIsOpen]
-  );
-  useEffect(() => {
-    textarea.addEventListener("input", inputListener);
-    return () => {
-      textarea.removeEventListener("input", inputListener);
     };
-  }, [inputListener]);
+    void load();
+  }, [isOpen, nonce, search]);
+
+  useEffect(() => {
+    const selected = itemRefs.current[selectedIndex];
+    selected?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [selectedIndex, gifs]);
+
+  const pickerWidth = useMemo(() => 1400, []);
+
   return (
-    <Popover
+    <Dialog
       isOpen={isOpen}
-      target={<span />}
-      position={Position.BOTTOM_LEFT}
-      minimal
-      content={
-        <div style={{ width: textarea.offsetWidth }} key={search}>
-          <Carousel
-            gifHeight={200}
-            noResultsMessage={`No GIFs found`}
-            fetchGifs={fetcher}
-            onGifClick={onGifClick}
-          />
-        </div>
-      }
-      portalClassName={"roamjs-giphy-portal"}
-      enforceFocus={false}
+      onClose={close}
+      canEscapeKeyClose
+      canOutsideClickClose
+      title={"Insert GIF"}
+      style={{ width: pickerWidth, maxWidth: "95vw" }}
       autoFocus={false}
-    />
+    >
+      <div style={{ padding: 10 }}>
+        <InputGroup
+          inputRef={(r: HTMLInputElement | null) => {
+            searchInputRef.current = r;
+          }}
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            e.stopPropagation();
+            setSearch(e.target.value);
+          }}
+          onKeyUp={(e: React.KeyboardEvent<HTMLInputElement>) =>
+            e.stopPropagation()
+          }
+          onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) =>
+            e.stopPropagation()
+          }
+          onKeyDown={onSearchKeyDown}
+          autoComplete={"off"}
+          leftIcon={"search"}
+          placeholder={"Search GIFs"}
+        />
+        <div
+          style={{
+            marginTop: 8,
+            maxHeight: 720,
+            overflowY: "auto",
+            overflowX: "hidden",
+            display: "grid",
+            gap: 0,
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          }}
+        >
+          {isLoading && (
+            <Card elevation={Elevation.ZERO} style={{ gridColumn: "1 / -1" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 120,
+                }}
+              >
+                <Spinner size={24} />
+              </div>
+            </Card>
+          )}
+          {!isLoading && !!error && (
+            <Card elevation={Elevation.ZERO} style={{ gridColumn: "1 / -1" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{error}</span>
+                <Button
+                  minimal
+                  small
+                  text={"Retry"}
+                  onClick={() => setNonce((n) => n + 1)}
+                />
+              </div>
+            </Card>
+          )}
+          {!isLoading && !error && !gifs.length && (
+            <Card elevation={Elevation.ZERO} style={{ gridColumn: "1 / -1" }}>
+              No GIFs found.
+            </Card>
+          )}
+          {!isLoading &&
+            gifs.map((gif, i) => {
+              const image =
+                gif.images.fixed_height?.url ||
+                gif.images.fixed_width_small?.url ||
+                gif.images.preview_gif?.url;
+              return (
+                <Button
+                  key={gif.id}
+                  elementRef={(r: HTMLButtonElement | null) => {
+                    itemRefs.current[i] = r;
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    void insertGif(gif);
+                  }}
+                  minimal
+                  style={{
+                    display: "block",
+                    height: 225,
+                    width: "100%",
+                    position: "relative",
+                    minHeight: 0,
+                    lineHeight: 0,
+                    fontSize: 0,
+                    padding: 0,
+                    borderRadius: 0,
+                    overflow: "hidden",
+                    border:
+                      i === selectedIndex
+                        ? "4px solid #182026"
+                        : "1px solid transparent",
+                    background: "transparent",
+                    boxShadow:
+                      i === selectedIndex
+                        ? "0 0 0 3px #106ba3, inset 0 0 0 2px rgba(16,107,163,0.95)"
+                        : "none",
+                    opacity: i === selectedIndex ? 1 : 0.82,
+                  }}
+                >
+                  {image ? (
+                    <img
+                      src={image}
+                      alt={gif.title || "gif"}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                        filter:
+                          i === selectedIndex
+                            ? "none"
+                            : "saturate(0.92) brightness(0.88)",
+                      }}
+                    />
+                  ) : (
+                    <span>GIF</span>
+                  )}
+                </Button>
+              );
+            })}
+        </div>
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 11,
+            color: "#5c7080",
+          }}
+        >
+          Arrow keys navigate, Enter inserts, Esc closes.
+        </div>
+      </div>
+    </Dialog>
   );
 };
 
-export const render = (t: HTMLTextAreaElement): void => {
-  const parent = document.createElement("div");
-  t.parentElement.appendChild(parent);
-  parent.style.height = "0";
-  ReactDOM.render(<GiphyPopover textarea={t} />, parent);
+export const initGiphyOverlay = (): void => {
+  if (rootEl) {
+    return;
+  }
+  rootEl = document.createElement("div");
+  rootEl.className = "roamjs-giphy-overlay-root";
+  document.body.appendChild(rootEl);
+  ReactDOM.render(<GiphyOverlay />, rootEl);
 };
 
-export default GiphyPopover;
+export const openGiphyPicker = (context: OpenContext): void => {
+  initGiphyOverlay();
+  if (controller) {
+    controller.open(context);
+  } else {
+    pendingOpen = context;
+    window.setTimeout(() => controller?.open(context), 0);
+  }
+};
+
+export default GiphyOverlay;
