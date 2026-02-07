@@ -125,13 +125,18 @@ const GiphyOverlay = () => {
       const newValue = `${value.slice(0, position)}${gifMarkdown}${value.slice(
         position
       )}`;
-      await window.roamAlphaAPI.updateBlock({
-        block: { string: newValue, uid: context.blockUid },
-      });
-      setIsOpen(false);
-      searchInputRef.current?.blur();
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
+      try {
+        await window.roamAlphaAPI.updateBlock({
+          block: { string: newValue, uid: context.blockUid },
+        });
+        setIsOpen(false);
+        searchInputRef.current?.blur();
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      } catch (e) {
+        console.error("[giphy:/gif] failed to insert gif", e);
+        setError("Failed to insert GIF. Please try again.");
       }
     },
     [context]
