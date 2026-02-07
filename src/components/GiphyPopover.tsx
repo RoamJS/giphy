@@ -424,7 +424,6 @@ export const openGiphyPicker = (context: OpenContext): void => {
     controller.open(context);
   } else {
     pendingOpen = context;
-    window.setTimeout(() => controller?.open(context), 0);
   }
 };
 
