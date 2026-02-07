@@ -98,6 +98,7 @@ const GiphyOverlay = () => {
   const [search, setSearch] = useState("");
   const [gifs, setGifs] = useState<IGif[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [nonce, setNonce] = useState(0);
@@ -191,6 +192,7 @@ const GiphyOverlay = () => {
         setContext(nextContext);
         setSearch("");
         setSelectedIndex(0);
+        setHoveredIndex(null);
         setError("");
         setNonce((n) => n + 1);
         setIsOpen(true);
@@ -352,6 +354,7 @@ const GiphyOverlay = () => {
             columnsData.map((col, colIndex) => (
               <div key={colIndex} style={{ flex: "1 1 0" }}>
                 {col.map(({ gif, index: i }) => {
+                  const isActive = i === selectedIndex || i === hoveredIndex;
                   const image =
                     gif.images.fixed_height?.url ||
                     gif.images.fixed_width_small?.url ||
@@ -367,6 +370,10 @@ const GiphyOverlay = () => {
                         e.preventDefault();
                         void insertGif(gif);
                       }}
+                      onMouseEnter={() => setHoveredIndex(i)}
+                      onMouseLeave={() =>
+                        setHoveredIndex((prev) => (prev === i ? null : prev))
+                      }
                       minimal
                       style={{
                         display: "block",
@@ -386,7 +393,7 @@ const GiphyOverlay = () => {
                           i === selectedIndex
                             ? "0 0 0 3px #106ba3, inset 0 0 0 2px rgba(16,107,163,0.95)"
                             : "none",
-                        opacity: i === selectedIndex ? 1 : 0.82,
+                        opacity: isActive ? 1 : 0.82,
                       }}
                     >
                       {image ? (
@@ -398,7 +405,7 @@ const GiphyOverlay = () => {
                             height: "auto",
                             display: "block",
                             filter:
-                              i === selectedIndex
+                              isActive
                                 ? "none"
                                 : "saturate(0.92) brightness(0.88)",
                           }}
