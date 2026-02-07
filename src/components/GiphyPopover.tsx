@@ -32,6 +32,22 @@ let pendingOpen: OpenContext | null = null;
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(n, max));
 
+const getVerticalGridIndex = ({
+  currentIndex,
+  direction,
+  columns,
+  total,
+}: {
+  currentIndex: number;
+  direction: "up" | "down";
+  columns: number;
+  total: number;
+}) => {
+  const nextIndex =
+    direction === "down" ? currentIndex + columns : currentIndex - columns;
+  return nextIndex >= 0 && nextIndex < total ? nextIndex : currentIndex;
+};
+
 const getCenter = (el: HTMLElement) => {
   const rect = el.getBoundingClientRect();
   return {
@@ -143,16 +159,18 @@ const GiphyOverlay = () => {
           refs: itemRefs.current,
         });
       } else if (e.key === "ArrowDown") {
-        nextIndex = getDirectionalIndex({
+        nextIndex = getVerticalGridIndex({
           currentIndex: selectedIndex,
           direction: "down",
-          refs: itemRefs.current,
+          columns,
+          total: gifs.length,
         });
       } else if (e.key === "ArrowUp") {
-        nextIndex = getDirectionalIndex({
+        nextIndex = getVerticalGridIndex({
           currentIndex: selectedIndex,
           direction: "up",
-          refs: itemRefs.current,
+          columns,
+          total: gifs.length,
         });
       } else if (e.key === "Enter") {
         e.preventDefault();
