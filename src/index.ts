@@ -99,7 +99,7 @@ export default runExtension(async () => {
       const activeUid = textarea ? getUids(textarea).blockUid : "";
       const targetUid = callbackUid || activeUid;
       const currentValue = textarea?.value || (targetUid ? getTextByBlockUid(targetUid) : "");
-      const cursorStart = textarea?.selectionStart || currentValue.length;
+      const cursorStart = textarea?.selectionStart ?? currentValue.length;
       const hasIndexRange =
         callbackUid &&
         Array.isArray(context.indexes) &&
