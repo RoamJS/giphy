@@ -2,12 +2,26 @@ import runExtension from "roamjs-components/util/runExtension";
 import getTextByBlockUid from "roamjs-components/queries/getTextByBlockUid";
 import getUids from "roamjs-components/dom/getUids";
 import updateBlock from "roamjs-components/writes/updateBlock";
-import { initGiphyOverlay, openGiphyPicker } from "./components/GiphyPopover";
+import {
+  initGiphyOverlay,
+  openGiphyPicker,
+  teardownGiphyOverlay,
+} from "./components/GiphyPopover";
 
 type SlashCommandContext = {
   "block-uid"?: string;
   indexes?: [number, number];
 };
+
+type SlashCommandApi = {
+  addCommand: (command: {
+    label: string;
+    callback: (...args: unknown[]) => void;
+  }) => null | void;
+  removeCommand?: (command: { label: string }) => void | Promise<void>;
+};
+
+const SLASH_COMMAND_LABEL = "Giphy: Insert GIF";
 
 const removeSlashFragmentFromIndexes = (
   value: string,
@@ -68,17 +82,14 @@ const waitForBlockText = async ({
 export default runExtension(async () => {
   initGiphyOverlay();
 
-  (
+  const slashCommand = (
     window.roamAlphaAPI.ui as {
-      slashCommand?: {
-        addCommand: (command: {
-          label: string;
-          callback: (...args: unknown[]) => void;
-        }) => void;
-      };
+      slashCommand?: SlashCommandApi;
     }
-  ).slashCommand?.addCommand({
-    label: "Giphy: Insert GIF",
+  ).slashCommand;
+
+  slashCommand?.addCommand({
+    label: SLASH_COMMAND_LABEL,
     callback: (...args: unknown[]) => {
       const activeElement = document.activeElement;
       const textarea =
@@ -135,4 +146,9 @@ export default runExtension(async () => {
       );
     },
   });
+
+  return () => {
+    void slashCommand?.removeCommand?.({ label: SLASH_COMMAND_LABEL });
+    teardownGiphyOverlay();
+  };
 });
