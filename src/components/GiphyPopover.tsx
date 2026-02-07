@@ -32,6 +32,50 @@ let pendingOpen: OpenContext | null = null;
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(n, max));
 
+const getCenter = (el: HTMLElement) => {
+  const rect = el.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+};
+
+const getDirectionalIndex = ({
+  currentIndex,
+  direction,
+  refs,
+}: {
+  currentIndex: number;
+  direction: "left" | "right" | "up" | "down";
+  refs: Array<HTMLButtonElement | null>;
+}) => {
+  const current = refs[currentIndex];
+  if (!current) return currentIndex;
+  const c = getCenter(current);
+  let best = currentIndex;
+  let bestScore = Number.POSITIVE_INFINITY;
+  refs.forEach((candidate, i) => {
+    if (!candidate || i === currentIndex) {
+      return;
+    }
+    const p = getCenter(candidate);
+    const dx = p.x - c.x;
+    const dy = p.y - c.y;
+    if (direction === "left" && dx >= -2) return;
+    if (direction === "right" && dx <= 2) return;
+    if (direction === "up" && dy >= -2) return;
+    if (direction === "down" && dy <= 2) return;
+    const primary = direction === "left" || direction === "right" ? Math.abs(dx) : Math.abs(dy);
+    const secondary = direction === "left" || direction === "right" ? Math.abs(dy) : Math.abs(dx);
+    const score = primary * 1000 + secondary;
+    if (score < bestScore) {
+      bestScore = score;
+      best = i;
+    }
+  });
+  return best;
+};
+
 const GiphyOverlay = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [context, setContext] = useState<OpenContext | null>(null);
@@ -44,7 +88,7 @@ const GiphyOverlay = () => {
   const requestRef = useRef(0);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const columns = 5;
+  const columns = 4;
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -87,13 +131,29 @@ const GiphyOverlay = () => {
       }
       let nextIndex = selectedIndex;
       if (e.key === "ArrowRight") {
-        nextIndex = Math.min(gifs.length - 1, selectedIndex + 1);
+        nextIndex = getDirectionalIndex({
+          currentIndex: selectedIndex,
+          direction: "right",
+          refs: itemRefs.current,
+        });
       } else if (e.key === "ArrowLeft") {
-        nextIndex = Math.max(0, selectedIndex - 1);
+        nextIndex = getDirectionalIndex({
+          currentIndex: selectedIndex,
+          direction: "left",
+          refs: itemRefs.current,
+        });
       } else if (e.key === "ArrowDown") {
-        nextIndex = Math.min(gifs.length - 1, selectedIndex + columns);
+        nextIndex = getDirectionalIndex({
+          currentIndex: selectedIndex,
+          direction: "down",
+          refs: itemRefs.current,
+        });
       } else if (e.key === "ArrowUp") {
-        nextIndex = Math.max(0, selectedIndex - columns);
+        nextIndex = getDirectionalIndex({
+          currentIndex: selectedIndex,
+          direction: "up",
+          refs: itemRefs.current,
+        });
       } else if (e.key === "Enter") {
         e.preventDefault();
         void insertGif(gifs[selectedIndex]);
@@ -184,6 +244,17 @@ const GiphyOverlay = () => {
     selected?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [selectedIndex, gifs]);
 
+  const columnsData = useMemo(() => {
+    const cols: Array<Array<{ gif: IGif; index: number }>> = Array.from(
+      { length: columns },
+      () => []
+    );
+    gifs.forEach((gif, i) => {
+      cols[i % columns].push({ gif, index: i });
+    });
+    return cols;
+  }, [gifs, columns]);
+
   const pickerWidth = useMemo(() => 1400, []);
 
   return (
@@ -223,9 +294,8 @@ const GiphyOverlay = () => {
             maxHeight: 720,
             overflowY: "auto",
             overflowX: "hidden",
-            display: "grid",
+            display: "flex",
             gap: 0,
-            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           }}
         >
           {isLoading && (
@@ -261,67 +331,68 @@ const GiphyOverlay = () => {
             </Card>
           )}
           {!isLoading &&
-            gifs.map((gif, i) => {
-              const image =
-                gif.images.fixed_height?.url ||
-                gif.images.fixed_width_small?.url ||
-                gif.images.preview_gif?.url;
-              return (
-                <Button
-                  key={gif.id}
-                  elementRef={(r: HTMLButtonElement | null) => {
-                    itemRefs.current[i] = r;
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    void insertGif(gif);
-                  }}
-                  minimal
-                  style={{
-                    display: "block",
-                    height: 225,
-                    width: "100%",
-                    position: "relative",
-                    minHeight: 0,
-                    lineHeight: 0,
-                    fontSize: 0,
-                    padding: 0,
-                    borderRadius: 0,
-                    overflow: "hidden",
-                    border:
-                      i === selectedIndex
-                        ? "4px solid #182026"
-                        : "1px solid transparent",
-                    background: "transparent",
-                    boxShadow:
-                      i === selectedIndex
-                        ? "0 0 0 3px #106ba3, inset 0 0 0 2px rgba(16,107,163,0.95)"
-                        : "none",
-                    opacity: i === selectedIndex ? 1 : 0.82,
-                  }}
-                >
-                  {image ? (
-                    <img
-                      src={image}
-                      alt={gif.title || "gif"}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                        filter:
-                          i === selectedIndex
-                            ? "none"
-                            : "saturate(0.92) brightness(0.88)",
+            columnsData.map((col, colIndex) => (
+              <div key={colIndex} style={{ flex: "1 1 0" }}>
+                {col.map(({ gif, index: i }) => {
+                  const image =
+                    gif.images.fixed_height?.url ||
+                    gif.images.fixed_width_small?.url ||
+                    gif.images.preview_gif?.url;
+                  return (
+                    <Button
+                      key={gif.id}
+                      elementRef={(r: HTMLButtonElement | null) => {
+                        itemRefs.current[i] = r;
                       }}
-                    />
-                  ) : (
-                    <span>GIF</span>
-                  )}
-                </Button>
-              );
-            })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        void insertGif(gif);
+                      }}
+                      minimal
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        position: "relative",
+                        lineHeight: 0,
+                        fontSize: 0,
+                        padding: 0,
+                        borderRadius: 0,
+                        overflow: "hidden",
+                        border:
+                          i === selectedIndex
+                            ? "4px solid #182026"
+                            : "1px solid transparent",
+                        background: "transparent",
+                        boxShadow:
+                          i === selectedIndex
+                            ? "0 0 0 3px #106ba3, inset 0 0 0 2px rgba(16,107,163,0.95)"
+                            : "none",
+                        opacity: i === selectedIndex ? 1 : 0.82,
+                      }}
+                    >
+                      {image ? (
+                        <img
+                          src={image}
+                          alt={gif.title || "gif"}
+                          style={{
+                            width: "100%",
+                            height: "auto",
+                            display: "block",
+                            filter:
+                              i === selectedIndex
+                                ? "none"
+                                : "saturate(0.92) brightness(0.88)",
+                          }}
+                        />
+                      ) : (
+                        <span>GIF</span>
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            ))}
         </div>
         <div
           style={{

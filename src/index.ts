@@ -78,7 +78,7 @@ export default runExtension(async () => {
       };
     }
   ).slashCommand?.addCommand({
-    label: "GIF",
+    label: "Giphy: Insert GIF",
     callback: (...args: unknown[]) => {
       const activeElement = document.activeElement;
       const textarea =
