@@ -8,6 +8,8 @@
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoamJS/giphy)
 
+<video src="https://github.com/user-attachments/assets/c43ad3da-7a20-446a-85f3-3224c33aeed6" controls muted playsinline width="100%"></video>
+
 ## Usage
 
 Type `/gif` in any block and select `Giphy: Insert GIF` from the slash menu. This opens the GIF picker overlay.
