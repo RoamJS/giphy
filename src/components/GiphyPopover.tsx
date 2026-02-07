@@ -96,6 +96,7 @@ const GiphyOverlay = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [context, setContext] = useState<OpenContext | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [gifs, setGifs] = useState<IGif[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -192,6 +193,7 @@ const GiphyOverlay = () => {
       open: (nextContext: OpenContext) => {
         setContext(nextContext);
         setSearch("");
+        setDebouncedSearch("");
         setSelectedIndex(0);
         setHoveredIndex(null);
         setError("");
@@ -221,6 +223,11 @@ const GiphyOverlay = () => {
   }, [isOpen]);
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search), 350);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
     if (!isOpen) {
       return;
     }
@@ -237,8 +244,8 @@ const GiphyOverlay = () => {
     setError("");
     const load = async () => {
       try {
-        const result = search.trim()
-          ? await gf.search(search.trim(), { limit: 24 })
+        const result = debouncedSearch.trim()
+          ? await gf.search(debouncedSearch.trim(), { limit: 24 })
           : await gf.trending({ limit: 24 });
         if (requestRef.current !== requestId) {
           return;
@@ -258,7 +265,7 @@ const GiphyOverlay = () => {
       }
     };
     void load();
-  }, [isOpen, nonce, search]);
+  }, [isOpen, nonce, debouncedSearch]);
 
   useEffect(() => {
     const selected = itemRefs.current[selectedIndex];
