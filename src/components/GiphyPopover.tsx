@@ -299,7 +299,7 @@ const GiphyOverlay = () => {
           }}
         >
           {isLoading && (
-            <Card elevation={Elevation.ZERO} style={{ gridColumn: "1 / -1" }}>
+            <Card elevation={Elevation.ZERO}>
               <div
                 style={{
                   display: "flex",
@@ -313,7 +313,7 @@ const GiphyOverlay = () => {
             </Card>
           )}
           {!isLoading && !!error && (
-            <Card elevation={Elevation.ZERO} style={{ gridColumn: "1 / -1" }}>
+            <Card elevation={Elevation.ZERO}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>{error}</span>
                 <Button
@@ -326,7 +326,7 @@ const GiphyOverlay = () => {
             </Card>
           )}
           {!isLoading && !error && !gifs.length && (
-            <Card elevation={Elevation.ZERO} style={{ gridColumn: "1 / -1" }}>
+            <Card elevation={Elevation.ZERO}>
               No GIFs found.
             </Card>
           )}
