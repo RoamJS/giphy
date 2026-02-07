@@ -59,26 +59,6 @@ const removeSlashFragmentFromCursor = (value: string, cursor: number) => {
   return { cleaned: value, insertAt: safeCursor };
 };
 
-const waitForBlockText = async ({
-  uid,
-  text,
-  attempts = 25,
-  interval = 20,
-}: {
-  uid: string;
-  text: string;
-  attempts?: number;
-  interval?: number;
-}) => {
-  for (let i = 0; i < attempts; i += 1) {
-    if (getTextByBlockUid(uid) === text) {
-      return true;
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, interval));
-  }
-  return false;
-};
-
 export default runExtension(async () => {
   initGiphyOverlay();
 
@@ -118,18 +98,8 @@ export default runExtension(async () => {
           textarea.dispatchEvent(new Event("input", { bubbles: true }));
         }
         if (targetUid) {
-          const indexTuple =
-            hasIndexRange && context.indexes ? (context.indexes as [number, number]) : null;
-          window.setTimeout(async () => {
-            const matched = await waitForBlockText({
-              uid: targetUid,
-              text: currentValue,
-            });
-            const baseText = matched ? currentValue : getTextByBlockUid(targetUid);
-            const finalText = indexTuple
-              ? removeSlashFragmentFromIndexes(baseText, indexTuple).cleaned
-              : removeSlashFragmentFromCursor(baseText, cursorStart).cleaned;
-            return updateBlock({ uid: targetUid, text: finalText }).catch((e) =>
+          window.setTimeout(() => {
+            updateBlock({ uid: targetUid, text: updatedValue }).catch((e) =>
               console.error("[giphy:/gif] persisted update failed", e)
             );
           }, 0);
