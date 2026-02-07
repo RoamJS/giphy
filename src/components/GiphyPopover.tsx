@@ -102,7 +102,8 @@ const GiphyOverlay = () => {
       }
       const value = getTextByBlockUid(context.blockUid) || "";
       const position = clamp(context.insertAt, 0, value.length);
-      const gifMarkdown = `![${gif.title}](${gif.images.original.url})`;
+      const safeTitle = (gif.title || "gif").replace(/[\[\]()]/g, "");
+      const gifMarkdown = `![${safeTitle}](${gif.images.original.url})`;
       const newValue = `${value.slice(0, position)}${gifMarkdown}${value.slice(
         position
       )}`;
