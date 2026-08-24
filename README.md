@@ -18,6 +18,7 @@ In the picker:
 
 - Type to search GIPHY results (or browse trending by default).
 - Use arrow keys or hover to select a GIF.
+- Press `Ctrl-C` to copy the selected GIF's original link.
 - Press `Enter` (or click) to insert it at the cursor.
 - Press `Esc` to close.
 

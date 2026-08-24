@@ -1,16 +1,26 @@
 import {
   Button,
-  Card,
+  Classes,
   Dialog,
-  Elevation,
+  Divider,
   InputGroup,
-  Spinner,
 } from "@blueprintjs/core";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ReactDOM from "react-dom";
 import { GiphyFetch } from "@giphy/js-fetch-api";
 import { IGif } from "@giphy/js-types";
 import getTextByBlockUid from "roamjs-components/queries/getTextByBlockUid";
+import {
+  copyGifLink,
+  getGiphyResultState,
+  isCopyGifShortcut,
+} from "./giphyPickerState";
 
 type OpenContext = {
   blockUid?: string;
@@ -24,6 +34,12 @@ type OverlayController = {
 
 const gf = new GiphyFetch("NUeKPL1mNJZJmI2FOP69LA6Np5hIQdXS");
 const GIPHY_API_PAUSED = false;
+const PICKER_WIDTH = 1400;
+const RESULT_VIEWPORT_HEIGHT = "min(720px, calc(100vh - 180px))";
+const ROAM_MODAL_SHADOW = "0 8px 28px rgba(0, 0, 0, 0.18)";
+const SKELETON_HEIGHTS = [176, 224, 152, 208];
+const ROAM_FOOTER_BACKGROUND = "rgb(235, 236, 235)";
+const ROAM_FOOTER_BORDER = "rgb(211, 212, 212)";
 
 let rootEl: HTMLDivElement | null = null;
 let controller: OverlayController | null = null;
@@ -81,8 +97,14 @@ const getDirectionalIndex = ({
     if (direction === "right" && dx <= 2) return;
     if (direction === "up" && dy >= -2) return;
     if (direction === "down" && dy <= 2) return;
-    const primary = direction === "left" || direction === "right" ? Math.abs(dx) : Math.abs(dy);
-    const secondary = direction === "left" || direction === "right" ? Math.abs(dy) : Math.abs(dx);
+    const primary =
+      direction === "left" || direction === "right"
+        ? Math.abs(dx)
+        : Math.abs(dy);
+    const secondary =
+      direction === "left" || direction === "right"
+        ? Math.abs(dy)
+        : Math.abs(dx);
     const score = primary * 1000 + secondary;
     if (score < bestScore) {
       bestScore = score;
@@ -91,6 +113,65 @@ const getDirectionalIndex = ({
   });
   return best;
 };
+
+const LoadingGrid = ({ columns }: { columns: number }) => (
+  <>
+    {Array.from({ length: columns }, (_, columnIndex) => (
+      <div key={columnIndex} style={{ flex: "1 1 0" }}>
+        {SKELETON_HEIGHTS.map((_, rowIndex) => (
+          <div
+            key={rowIndex}
+            className={Classes.SKELETON}
+            style={{
+              height:
+                SKELETON_HEIGHTS[
+                  (rowIndex + columnIndex) % SKELETON_HEIGHTS.length
+                ],
+              margin: 2,
+            }}
+          />
+        ))}
+      </div>
+    ))}
+  </>
+);
+
+const FooterAction = ({
+  label,
+  shortcut,
+  primary = false,
+}: {
+  label: string;
+  shortcut: string;
+  primary?: boolean;
+}) => (
+  <div
+    style={{
+      alignItems: "center",
+      color: "#182026",
+      display: "flex",
+      fontSize: 12,
+      lineHeight: "12px",
+      padding: "2px 5px",
+    }}
+  >
+    <span style={{ fontWeight: primary ? 700 : 400, marginRight: 3 }}>
+      {label}
+    </span>
+    <span
+      style={{
+        background: "rgba(0, 0, 0, 0.08)",
+        borderRadius: 2,
+        color: "#5c7080",
+        fontSize: 10,
+        lineHeight: "10px",
+        padding: "1px 4px",
+      }}
+    >
+      {shortcut}
+    </span>
+  </div>
+);
 
 const GiphyOverlay = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -123,7 +204,7 @@ const GiphyOverlay = () => {
       const safeTitle = (gif.title || "gif").replace(/[\[\]()]/g, "");
       const gifMarkdown = `![${safeTitle}](${gif.images.original.url})`;
       const newValue = `${value.slice(0, position)}${gifMarkdown}${value.slice(
-        position
+        position,
       )}`;
       try {
         await window.roamAlphaAPI.updateBlock({
@@ -139,8 +220,20 @@ const GiphyOverlay = () => {
         setError("Failed to insert GIF. Please try again.");
       }
     },
-    [context]
+    [context],
   );
+
+  const copySelectedGifLink = useCallback(async (gif: IGif) => {
+    try {
+      await copyGifLink({
+        originalUrl: gif.images.original?.url,
+        fallbackUrl: gif.url,
+        clipboard: navigator.clipboard,
+      });
+    } catch (e) {
+      console.error("[giphy:/gif] failed to copy gif link", e);
+    }
+  }, []);
 
   const onSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -151,6 +244,11 @@ const GiphyOverlay = () => {
         return;
       }
       if (!gifs.length) {
+        return;
+      }
+      if (isCopyGifShortcut({ key: e.key, ctrlKey: e.ctrlKey })) {
+        e.preventDefault();
+        void copySelectedGifLink(gifs[selectedIndex]);
         return;
       }
       let nextIndex = selectedIndex;
@@ -190,7 +288,7 @@ const GiphyOverlay = () => {
       e.preventDefault();
       setSelectedIndex(nextIndex);
     },
-    [close, columns, gifs, insertGif, selectedIndex]
+    [close, columns, copySelectedGifLink, gifs, insertGif, selectedIndex],
   );
 
   useEffect(() => {
@@ -280,7 +378,7 @@ const GiphyOverlay = () => {
   const columnsData = useMemo(() => {
     const cols: Array<Array<{ gif: IGif; index: number }>> = Array.from(
       { length: columns },
-      () => []
+      () => [],
     );
     gifs.forEach((gif, i) => {
       cols[i % columns].push({ gif, index: i });
@@ -288,7 +386,11 @@ const GiphyOverlay = () => {
     return cols;
   }, [gifs, columns]);
 
-  const pickerWidth = useMemo(() => 1400, []);
+  const resultState = getGiphyResultState({
+    isLoading,
+    error,
+    resultCount: gifs.length,
+  });
 
   return (
     <Dialog
@@ -297,10 +399,19 @@ const GiphyOverlay = () => {
       canEscapeKeyClose
       canOutsideClickClose
       title={"Insert GIF"}
-      style={{ width: pickerWidth, maxWidth: "95vw" }}
+      className={"roamjs-giphy-dialog"}
+      style={{
+        width: PICKER_WIDTH,
+        maxWidth: "95vw",
+        paddingBottom: 0,
+        overflow: "hidden",
+        background: "#ffffff",
+        borderRadius: 8,
+        boxShadow: ROAM_MODAL_SHADOW,
+      }}
       autoFocus={false}
     >
-      <div style={{ padding: 10 }}>
+      <div style={{ padding: 10, background: "#ffffff" }}>
         <InputGroup
           inputRef={(r: HTMLInputElement | null) => {
             searchInputRef.current = r;
@@ -322,32 +433,28 @@ const GiphyOverlay = () => {
           placeholder={"Search GIFs"}
         />
         <div
+          data-giphy-results-state={resultState}
           style={{
             marginTop: 8,
-            maxHeight: 720,
+            height: RESULT_VIEWPORT_HEIGHT,
             overflowY: "auto",
             overflowX: "hidden",
             display: "flex",
             gap: 0,
+            background: "#ffffff",
           }}
         >
-          {isLoading && (
-            <Card elevation={Elevation.ZERO}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 120,
-                }}
-              >
-                <Spinner size={24} />
-              </div>
-            </Card>
-          )}
+          {isLoading && <LoadingGrid columns={columns} />}
           {!isLoading && !!error && (
-            <Card elevation={Elevation.ZERO}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div
+              style={{
+                alignItems: "center",
+                display: "flex",
+                justifyContent: "center",
+                width: "100%",
+              }}
+            >
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span>{error}</span>
                 <Button
                   minimal
@@ -356,12 +463,19 @@ const GiphyOverlay = () => {
                   onClick={() => setNonce((n) => n + 1)}
                 />
               </div>
-            </Card>
+            </div>
           )}
           {!isLoading && !error && !gifs.length && (
-            <Card elevation={Elevation.ZERO}>
+            <div
+              style={{
+                alignItems: "center",
+                display: "flex",
+                justifyContent: "center",
+                width: "100%",
+              }}
+            >
               No GIFs found.
-            </Card>
+            </div>
           )}
           {!isLoading &&
             columnsData.map((col, colIndex) => (
@@ -387,6 +501,9 @@ const GiphyOverlay = () => {
                       onMouseLeave={() =>
                         setHoveredIndex((prev) => (prev === i ? null : prev))
                       }
+                      aria-label={`${gif.title || "GIF"}, result ${i + 1}`}
+                      aria-pressed={i === selectedIndex}
+                      data-giphy-result-index={i}
                       minimal
                       style={{
                         display: "block",
@@ -417,10 +534,9 @@ const GiphyOverlay = () => {
                             width: "100%",
                             height: "auto",
                             display: "block",
-                            filter:
-                              isActive
-                                ? "none"
-                                : "saturate(0.92) brightness(0.88)",
+                            filter: isActive
+                              ? "none"
+                              : "saturate(0.92) brightness(0.88)",
                           }}
                         />
                       ) : (
@@ -432,15 +548,27 @@ const GiphyOverlay = () => {
               </div>
             ))}
         </div>
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 11,
-            color: "#5c7080",
-          }}
-        >
-          Arrow keys navigate, Enter inserts, Esc closes.
-        </div>
+      </div>
+      <div
+        data-giphy-footer
+        style={{
+          alignItems: "center",
+          background: ROAM_FOOTER_BACKGROUND,
+          borderTop: `1px solid ${ROAM_FOOTER_BORDER}`,
+          boxSizing: "border-box",
+          display: "flex",
+          height: 30,
+          justifyContent: "flex-end",
+          padding: "3px 8px",
+        }}
+      >
+        <FooterAction label={"Navigate"} shortcut={"← ↑ ↓ →"} />
+        <Divider style={{ height: 13 }} />
+        <FooterAction label={"Copy"} shortcut={"Ctrl-C"} />
+        <Divider style={{ height: 13 }} />
+        <FooterAction label={"Close"} shortcut={"Esc"} />
+        <Divider style={{ height: 13 }} />
+        <FooterAction label={"Insert"} shortcut={"Enter"} primary />
       </div>
     </Dialog>
   );
