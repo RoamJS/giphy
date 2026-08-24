@@ -17,7 +17,9 @@ import { GiphyFetch } from "@giphy/js-fetch-api";
 import { IGif } from "@giphy/js-types";
 import getTextByBlockUid from "roamjs-components/queries/getTextByBlockUid";
 import {
-  copyGifLink,
+  copyGifMarkdown,
+  getCopyGifShortcutLabel,
+  getGifMarkdown,
   getGiphyResultState,
   isCopyGifShortcut,
 } from "./giphyPickerState";
@@ -201,8 +203,11 @@ const GiphyOverlay = () => {
       }
       const value = getTextByBlockUid(context.blockUid) || "";
       const position = clamp(context.insertAt, 0, value.length);
-      const safeTitle = (gif.title || "gif").replace(/[\[\]()]/g, "");
-      const gifMarkdown = `![${safeTitle}](${gif.images.original.url})`;
+      const gifMarkdown = getGifMarkdown({
+        title: gif.title,
+        originalUrl: gif.images.original?.url,
+        fallbackUrl: gif.url,
+      });
       const newValue = `${value.slice(0, position)}${gifMarkdown}${value.slice(
         position,
       )}`;
@@ -223,15 +228,16 @@ const GiphyOverlay = () => {
     [context],
   );
 
-  const copySelectedGifLink = useCallback(async (gif: IGif) => {
+  const copySelectedGifMarkdown = useCallback(async (gif: IGif) => {
     try {
-      await copyGifLink({
+      await copyGifMarkdown({
+        title: gif.title,
         originalUrl: gif.images.original?.url,
         fallbackUrl: gif.url,
         clipboard: navigator.clipboard,
       });
     } catch (e) {
-      console.error("[giphy:/gif] failed to copy gif link", e);
+      console.error("[giphy:/gif] failed to copy gif markdown", e);
     }
   }, []);
 
@@ -246,9 +252,15 @@ const GiphyOverlay = () => {
       if (!gifs.length) {
         return;
       }
-      if (isCopyGifShortcut({ key: e.key, ctrlKey: e.ctrlKey })) {
+      if (
+        isCopyGifShortcut({
+          key: e.key,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+        })
+      ) {
         e.preventDefault();
-        void copySelectedGifLink(gifs[selectedIndex]);
+        void copySelectedGifMarkdown(gifs[selectedIndex]);
         return;
       }
       let nextIndex = selectedIndex;
@@ -288,7 +300,7 @@ const GiphyOverlay = () => {
       e.preventDefault();
       setSelectedIndex(nextIndex);
     },
-    [close, columns, copySelectedGifLink, gifs, insertGif, selectedIndex],
+    [close, columns, copySelectedGifMarkdown, gifs, insertGif, selectedIndex],
   );
 
   useEffect(() => {
@@ -564,7 +576,10 @@ const GiphyOverlay = () => {
       >
         <FooterAction label={"Navigate"} shortcut={"← ↑ ↓ →"} />
         <Divider style={{ height: 13 }} />
-        <FooterAction label={"Copy"} shortcut={"Ctrl-C"} />
+        <FooterAction
+          label={"Copy"}
+          shortcut={getCopyGifShortcutLabel(navigator.platform)}
+        />
         <Divider style={{ height: 13 }} />
         <FooterAction label={"Close"} shortcut={"Esc"} />
         <Divider style={{ height: 13 }} />
