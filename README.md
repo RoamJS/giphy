@@ -6,8 +6,7 @@
 
 **Quickly insert GIFs and MEMEs into Roam without leaving the editor.**
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoamJS/giphy)
-[![Slack](https://img.shields.io/badge/Slack-%23roam--js-purple)](https://roamresearch.slack.com/archives/C016N2B66JU)
+[![RoamJS](https://roamjs.com/badges/website.svg)](https://roamjs.com/) [![DeepWiki](https://roamjs.com/badges/deepwiki.svg)](https://deepwiki.com/RoamJS/giphy) [![Slack](https://roamjs.com/badges/slack.svg)](https://roamresearch.slack.com/archives/C016N2B66JU)
 
 <video src="https://github.com/user-attachments/assets/c43ad3da-7a20-446a-85f3-3224c33aeed6" controls muted playsinline width="100%"></video>
 
