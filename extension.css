@@ -57,7 +57,7 @@ body:has(.roam-app.bp3-dark, .roam-body.bp3-dark)
 }
 
 .roamjs-giphy-status {
-  height: 34px;
+  min-height: 34px;
   flex-shrink: 0;
   padding: 0 12px;
   color: var(--giphy-muted);
@@ -96,6 +96,12 @@ body:has(.roam-app.bp3-dark, .roam-body.bp3-dark)
   overflow: hidden;
   border-radius: 4px;
   background-color: var(--giphy-footer);
+}
+
+.roamjs-giphy-option.bp3-button > .bp3-button-text {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .roamjs-giphy-option.bp3-button img {
@@ -159,7 +165,11 @@ body:has(.roam-app.bp3-dark, .roam-body.bp3-dark)
 }
 
 .roamjs-giphy-footer kbd {
-  color: var(--giphy-muted);
+  padding: 0 3px;
+  border: 1px solid var(--giphy-border);
+  border-radius: 3px;
+  background: var(--giphy-surface);
+  color: var(--giphy-text);
   font-size: 11px;
 }
 
