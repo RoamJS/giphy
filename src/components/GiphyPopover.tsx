@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog, InputGroup } from "@blueprintjs/core";
-import { GiphyFetch } from "@giphy/js-fetch-api";
+import { GiphyFetch, GifsResult, request } from "@giphy/js-fetch-api";
 import { IGif } from "@giphy/js-types";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
@@ -16,8 +16,21 @@ type OpenContext = { blockUid?: string; insertAt: number };
 type OverlayController = { open: (context: OpenContext) => void };
 type ActionFeedback = { message: string; error?: boolean; markdown?: string };
 
-const gf = new GiphyFetch("NUeKPL1mNJZJmI2FOP69LA6Np5hIQdXS");
+const GIPHY_API_KEY = "NUeKPL1mNJZJmI2FOP69LA6Np5hIQdXS";
+const gf = new GiphyFetch(GIPHY_API_KEY);
 const SEARCH_DELAY = 350;
+
+const retryGifs = async (query: string): Promise<GifsResult> => {
+  const params = new URLSearchParams({ api_key: GIPHY_API_KEY, limit: "24" });
+  if (query) params.set("q", query);
+  const endpoint = query ? "search" : "trending";
+  // The SDK caches rejected searches. An explicit retry needs a fresh response.
+  return (await request(
+    `gifs/${endpoint}?${params}`,
+    undefined,
+    true,
+  )) as GifsResult;
+};
 
 let rootEl: HTMLDivElement | null = null;
 let controller: OverlayController | null = null;
@@ -40,6 +53,7 @@ const GiphyOverlay = (): React.ReactElement => {
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const insertInFlight = useRef(false);
   const searchRequest = useRef(0);
+  const retrySearch = useRef(false);
   const copyRequest = useRef(0);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const copyButtonRef = useRef<HTMLButtonElement>(null);
@@ -193,6 +207,7 @@ const GiphyOverlay = (): React.ReactElement => {
         if (insertInFlight.current) return;
         searchRequest.current += 1;
         copyRequest.current += 1;
+        retrySearch.current = false;
         setContext(nextContext);
         setSearch("");
         setCopyMode(false);
@@ -221,6 +236,8 @@ const GiphyOverlay = (): React.ReactElement => {
   useEffect(() => {
     if (!isOpen) return;
     const request = ++searchRequest.current;
+    const retrying = retrySearch.current;
+    retrySearch.current = false;
     const timer = window.setTimeout(
       async () => {
         try {
@@ -264,6 +281,7 @@ const GiphyOverlay = (): React.ReactElement => {
     if (value.trim() === query) return;
     searchRequest.current += 1;
     copyRequest.current += 1;
+    retrySearch.current = false;
     setIsLoading(true);
     setError(false);
     setFeedback(null);
@@ -271,6 +289,7 @@ const GiphyOverlay = (): React.ReactElement => {
 
   const retry = (): void => {
     searchInputRef.current?.focus();
+    retrySearch.current = true;
     setError(false);
     setIsLoading(true);
     setNonce((value) => value + 1);
