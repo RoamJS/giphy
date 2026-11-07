@@ -126,7 +126,6 @@ const GiphyOverlay = (): React.ReactElement => {
 
   const copyGif = async (selected: IGif): Promise<void> => {
     if (isLoading || insertInFlight.current) return;
-    setCopyMode(false);
     const request = ++copyRequest.current;
     const gif = {
       title: selected.title,
@@ -164,7 +163,8 @@ const GiphyOverlay = (): React.ReactElement => {
 
   const cancelCopy = (): void => {
     setCopyMode(false);
-    copyButtonRef.current?.focus();
+    if (activeGif && !isLoading) copyButtonRef.current?.focus();
+    else searchInputRef.current?.focus();
   };
 
   const onSearchKeyDown = (
@@ -476,13 +476,13 @@ const GiphyOverlay = (): React.ReactElement => {
           minimal
           small
           icon="duplicate"
-          text={copyMode ? "Cancel copy" : "Copy GIF"}
+          text={copyMode ? "Back to insert" : "Copy GIF"}
           title={`Copy the highlighted GIF with ${copyShortcut}`}
           disabled={!copyMode && (!activeGif || actionsDisabled)}
           onClick={() => {
-            setCopyMode(!copyMode);
             setFeedback(null);
-            if (!copyMode) searchInputRef.current?.focus();
+            setCopyMode(!copyMode);
+            searchInputRef.current?.focus();
           }}
         />
       </footer>
