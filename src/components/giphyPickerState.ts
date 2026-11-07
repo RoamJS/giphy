@@ -1,4 +1,10 @@
-export type GiphyResultState = "loading" | "error" | "ready" | "empty";
+export type GiphyResultState =
+  | "loading"
+  | "refreshing"
+  | "error"
+  | "stale"
+  | "ready"
+  | "empty";
 
 export type GiphyPickerContext = {
   blockUid: string;
@@ -15,11 +21,11 @@ export const getGiphyResultState = ({
   resultCount,
 }: {
   isLoading: boolean;
-  error: string;
+  error: boolean;
   resultCount: number;
 }): GiphyResultState => {
-  if (isLoading) return "loading";
-  if (error) return "error";
+  if (isLoading) return resultCount ? "refreshing" : "loading";
+  if (error) return resultCount ? "stale" : "error";
   if (resultCount) return "ready";
   return "empty";
 };

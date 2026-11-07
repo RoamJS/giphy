@@ -17,6 +17,7 @@
     "roamjs-components": "^0.82.0"
   },
   "samepage": {
-    "extends": "node_modules/roamjs-components/package.json"
+    "extends": "node_modules/roamjs-components/package.json",
+    "include": "extension.css"
   }
 }

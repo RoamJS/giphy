@@ -8,13 +8,19 @@ import {
   resolveCommandPaletteContext,
 } from "../src/components/giphyPickerState";
 
-test("loading takes precedence while a replacement search is in flight", () => {
+test("retains existing results while searching and when the replacement fails", () => {
   expect(
     getGiphyResultState({
       isLoading: true,
-      error: "",
+      error: false,
       resultCount: 24,
     }),
+  ).toBe("refreshing");
+  expect(
+    getGiphyResultState({ isLoading: false, error: true, resultCount: 24 }),
+  ).toBe("stale");
+  expect(
+    getGiphyResultState({ isLoading: true, error: false, resultCount: 0 }),
   ).toBe("loading");
 });
 
@@ -22,21 +28,21 @@ test("reports error, ready, and empty result states", () => {
   expect(
     getGiphyResultState({
       isLoading: false,
-      error: "Failed to load GIFs.",
+      error: true,
       resultCount: 0,
     }),
   ).toBe("error");
   expect(
     getGiphyResultState({
       isLoading: false,
-      error: "",
+      error: false,
       resultCount: 24,
     }),
   ).toBe("ready");
   expect(
     getGiphyResultState({
       isLoading: false,
-      error: "",
+      error: false,
       resultCount: 0,
     }),
   ).toBe("empty");
