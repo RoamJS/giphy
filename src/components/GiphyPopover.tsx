@@ -36,11 +36,13 @@ const GiphyOverlay = (): React.ReactElement => {
   const [error, setError] = useState(false);
   const [nonce, setNonce] = useState(0);
   const [inserting, setInserting] = useState(false);
+  const [copyMode, setCopyMode] = useState(false);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const insertInFlight = useRef(false);
   const searchRequest = useRef(0);
   const copyRequest = useRef(0);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const copyButtonRef = useRef<HTMLButtonElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const query = search.trim();
@@ -103,13 +105,14 @@ const GiphyOverlay = (): React.ReactElement => {
     }
   };
 
-  const copySelectedGif = async (): Promise<void> => {
-    if (!activeGif || isLoading || insertInFlight.current) return;
+  const copyGif = async (selected: IGif): Promise<void> => {
+    if (isLoading || insertInFlight.current) return;
+    setCopyMode(false);
     const request = ++copyRequest.current;
     const gif = {
-      title: activeGif.title,
-      originalUrl: activeGif.images.original?.url,
-      fallbackUrl: activeGif.url,
+      title: selected.title,
+      originalUrl: selected.images.original?.url,
+      fallbackUrl: selected.url,
     };
     try {
       const copied = await copyGifMarkdown({
@@ -135,27 +138,36 @@ const GiphyOverlay = (): React.ReactElement => {
     }
   };
 
+  const chooseGif = (gif: IGif): void => {
+    if (copyMode) void copyGif(gif);
+    else void insertGif(gif);
+  };
+
   const onSearchKeyDown = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ): void => {
     event.stopPropagation();
     if (event.key === "Escape") {
       event.preventDefault();
-      close();
+      if (copyMode) {
+        setCopyMode(false);
+        copyButtonRef.current?.focus();
+      } else close();
       return;
     }
     if (
+      activeGif &&
       isCopyGifShortcut(event) &&
       event.currentTarget.selectionStart === event.currentTarget.selectionEnd
     ) {
       event.preventDefault();
-      void copySelectedGif();
+      void copyGif(activeGif);
       return;
     }
     if (!activeGif || isLoading || inserting) return;
     if (event.key === "Enter") {
       event.preventDefault();
-      void insertGif(activeGif);
+      chooseGif(activeGif);
       return;
     }
     if (!gridRef.current) return;
@@ -183,6 +195,7 @@ const GiphyOverlay = (): React.ReactElement => {
         copyRequest.current += 1;
         setContext(nextContext);
         setSearch("");
+        setCopyMode(false);
         setResults({ query: "", gifs: [] });
         setSelectedIndex(0);
         setIsLoading(true);
@@ -272,7 +285,11 @@ const GiphyOverlay = (): React.ReactElement => {
     stale: `Search failed. Showing ${previousResults}.`,
     error: "Couldn’t load GIFs.",
     empty: query ? "No GIFs match this search." : "No trending GIFs right now.",
-    ready: query ? `${gifs.length} GIFs` : "Trending GIFs",
+    ready: copyMode
+      ? "Choose a GIF to copy."
+      : query
+        ? `${gifs.length} GIFs`
+        : "Trending GIFs",
   }[resultState];
   const actionsDisabled = isLoading || inserting;
   const copyShortcut = getCopyGifShortcutLabel(navigator.platform);
@@ -286,7 +303,7 @@ const GiphyOverlay = (): React.ReactElement => {
       canOutsideClickClose={!inserting}
       isCloseButtonShown={!inserting}
       shouldReturnFocusOnClose
-      title="Insert GIF"
+      title={copyMode ? "Copy GIF" : "Insert GIF"}
       className="roamjs-giphy-dialog"
     >
       <div className="roamjs-giphy-search">
@@ -375,7 +392,7 @@ const GiphyOverlay = (): React.ReactElement => {
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   setSelectedIndex(index);
-                  void insertGif(gif);
+                  chooseGif(gif);
                 }}
               >
                 {image ? <img src={image} alt="" /> : "GIF"}
@@ -420,24 +437,25 @@ const GiphyOverlay = (): React.ReactElement => {
           Close <kbd>Esc</kbd>
         </span>
         <span className="roamjs-giphy-shortcuts">
-          Insert <kbd>Enter</kbd>
+          {copyMode ? "Copy" : "Insert"} <kbd>Enter</kbd>
         </span>
         <span className="roamjs-giphy-inserting" role="status">
           {inserting ? "Inserting GIF…" : ""}
         </span>
         <Button
           className="roamjs-giphy-copy"
+          elementRef={copyButtonRef}
           minimal
           small
           icon="duplicate"
-          text={
-            <span>
-              Copy GIF <kbd>{copyShortcut}</kbd>
-            </span>
-          }
-          aria-label="Copy GIF Markdown"
-          disabled={!activeGif || actionsDisabled}
-          onClick={() => void copySelectedGif()}
+          text={copyMode ? "Cancel copy" : "Copy GIF"}
+          title={`Copy the highlighted GIF with ${copyShortcut}`}
+          disabled={!copyMode && (!activeGif || actionsDisabled)}
+          onClick={() => {
+            setCopyMode(!copyMode);
+            setFeedback(null);
+            if (!copyMode) searchInputRef.current?.focus();
+          }}
         />
       </footer>
     </Dialog>
