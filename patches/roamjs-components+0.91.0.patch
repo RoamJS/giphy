@@ -1,0 +1,15 @@
+diff --git a/node_modules/roamjs-components/util/runExtension.js b/node_modules/roamjs-components/util/runExtension.js
+--- a/node_modules/roamjs-components/util/runExtension.js
++++ b/node_modules/roamjs-components/util/runExtension.js
+@@ -138,11 +138,6 @@
+                     message: error.message,
+                     stack: error.stack,
+                     version: process.env.VERSION,
+-                    notebookUuid: JSON.stringify({
+-                        owner: "RoamJS",
+-                        app: extensionId,
+-                        workspace: window.roamAlphaAPI.graph.name,
+-                    }),
+                 },
+             })
+                 .then(() => renderLoadFailure({
