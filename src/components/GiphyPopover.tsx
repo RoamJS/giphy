@@ -1,5 +1,5 @@
 import { Button, Classes, Dialog, InputGroup } from "@blueprintjs/core";
-import { GiphyFetch, GifsResult, request } from "@giphy/js-fetch-api";
+import { GifsResult, request } from "@giphy/js-fetch-api";
 import { IGif } from "@giphy/js-types";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
@@ -17,10 +17,15 @@ type OverlayController = { open: (context: OpenContext) => void };
 type ActionFeedback = { message: string; error?: boolean; markdown?: string };
 
 const GIPHY_API_KEY = "NUeKPL1mNJZJmI2FOP69LA6Np5hIQdXS";
-const gf = new GiphyFetch(GIPHY_API_KEY);
 const SEARCH_DELAY = 350;
 
-const retryGifs = async (query: string): Promise<GifsResult> => {
+const loadGifs = async ({
+  query,
+  retry,
+}: {
+  query: string;
+  retry: boolean;
+}): Promise<GifsResult> => {
   const params = new URLSearchParams({ api_key: GIPHY_API_KEY, limit: "24" });
   if (query) params.set("q", query);
   const endpoint = query ? "search" : "trending";
@@ -28,7 +33,7 @@ const retryGifs = async (query: string): Promise<GifsResult> => {
   return (await request(
     `gifs/${endpoint}?${params}`,
     undefined,
-    true,
+    retry,
   )) as GifsResult;
 };
 
@@ -157,16 +162,19 @@ const GiphyOverlay = (): React.ReactElement => {
     else void insertGif(gif);
   };
 
+  const cancelCopy = (): void => {
+    setCopyMode(false);
+    copyButtonRef.current?.focus();
+  };
+
   const onSearchKeyDown = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ): void => {
     event.stopPropagation();
     if (event.key === "Escape") {
       event.preventDefault();
-      if (copyMode) {
-        setCopyMode(false);
-        copyButtonRef.current?.focus();
-      } else close();
+      if (copyMode) cancelCopy();
+      else close();
       return;
     }
     if (
@@ -241,9 +249,7 @@ const GiphyOverlay = (): React.ReactElement => {
     const timer = window.setTimeout(
       async () => {
         try {
-          const result = query
-            ? await gf.search(query, { limit: 24 })
-            : await gf.trending({ limit: 24 });
+          const result = await loadGifs({ query, retry: retrying });
           if (request !== searchRequest.current) return;
           setResults({ query, gifs: result.data || [] });
           setSelectedIndex(0);
@@ -316,7 +322,10 @@ const GiphyOverlay = (): React.ReactElement => {
   return (
     <Dialog
       isOpen={isOpen}
-      onClose={close}
+      onClose={(event) => {
+        if (copyMode && event?.type === "keydown") cancelCopy();
+        else close();
+      }}
       onOpened={() => searchInputRef.current?.focus()}
       canEscapeKeyClose={!inserting}
       canOutsideClickClose={!inserting}
