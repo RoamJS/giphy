@@ -16,14 +16,6 @@ type SlashCommandContext = {
   indexes?: [number, number];
 };
 
-type SlashCommandApi = {
-  addCommand: (command: {
-    label: string;
-    callback: (...args: unknown[]) => string | null | void;
-  }) => null | void;
-  removeCommand?: (command: { label: string }) => void | Promise<void>;
-};
-
 const SLASH_COMMAND_LABEL = "Giphy: Insert GIF";
 const COMMAND_PALETTE_LABEL = "Giphy: Insert GIF";
 
@@ -81,12 +73,7 @@ export default runExtension(async ({ extensionAPI }) => {
     );
     return "";
   };
-  // TODO update roamjs-components to use the new slashCommand API
-  const slashCommand = (
-    window.roamAlphaAPI.ui as {
-      slashCommand?: SlashCommandApi;
-    }
-  ).slashCommand;
+  const { slashCommand } = window.roamAlphaAPI.ui;
   try {
     slashCommand?.addCommand({
       label: SLASH_COMMAND_LABEL,

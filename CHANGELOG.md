@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Updated the shared RoamJS components to preserve Roam's native React hook when Giphy loads.
+- Startup error reports continue to omit the graph name.
+
 ## [1.3.0] - 2026-08-23
 
 ### Added
