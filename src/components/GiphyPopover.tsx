@@ -18,6 +18,7 @@ type ActionFeedback = { message: string; error?: boolean; markdown?: string };
 
 const GIPHY_API_KEY = "NUeKPL1mNJZJmI2FOP69LA6Np5hIQdXS";
 const SEARCH_DELAY = 350;
+const NARROW_PICKER = "(max-width: 600px)";
 
 const loadGifs = async ({
   query,
@@ -50,6 +51,9 @@ const GiphyOverlay = (): React.ReactElement => {
     gifs: [],
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [columns, setColumns] = useState(() =>
+    window.matchMedia(NARROW_PICKER).matches ? 2 : 4,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [nonce, setNonce] = useState(0);
@@ -67,6 +71,13 @@ const GiphyOverlay = (): React.ReactElement => {
   const query = search.trim();
   const { gifs } = results;
   const activeGif = gifs[selectedIndex];
+  const gifColumns: { gif: IGif; index: number }[][] = Array.from(
+    { length: columns },
+    () => [],
+  );
+  gifs.forEach((gif, index) =>
+    gifColumns[index % columns].push({ gif, index }),
+  );
   const resultState = getGiphyResultState({
     isLoading,
     error,
@@ -192,10 +203,6 @@ const GiphyOverlay = (): React.ReactElement => {
       chooseGif(activeGif);
       return;
     }
-    if (!gridRef.current) return;
-    const columns = getComputedStyle(gridRef.current).gridTemplateColumns.split(
-      " ",
-    ).length;
     const offsets: Record<string, number> = {
       ArrowLeft: -1,
       ArrowRight: 1,
@@ -269,12 +276,18 @@ const GiphyOverlay = (): React.ReactElement => {
   }, [isOpen, nonce, query]);
 
   useEffect(() => {
+    const media = window.matchMedia(NARROW_PICKER);
+    const updateColumns = (): void => setColumns(media.matches ? 2 : 4);
+    media.addEventListener("change", updateColumns);
+    return () => media.removeEventListener("change", updateColumns);
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) return;
-    gridRef.current?.children[selectedIndex]?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-    });
-  }, [isOpen, selectedIndex, gifs]);
+    gridRef.current
+      ?.querySelector(`[data-giphy-result-index="${selectedIndex}"]`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [isOpen, selectedIndex, gifs, columns]);
 
   useEffect(() => {
     if (!feedback || feedback.error) return;
@@ -400,44 +413,60 @@ const GiphyOverlay = (): React.ReactElement => {
           aria-label="GIF results"
           aria-busy={isLoading}
         >
-          {gifs.map((gif, index) => {
-            const image =
-              gif.images.fixed_height?.url ||
-              gif.images.fixed_width_small?.url ||
-              gif.images.preview_gif?.url;
-            return (
-              <Button
-                key={gif.id}
-                id={`roamjs-giphy-option-${index}`}
-                className="roamjs-giphy-option"
-                role="option"
-                tabIndex={-1}
-                aria-label={gif.title || `GIF ${index + 1}`}
-                aria-selected={index === selectedIndex}
-                data-giphy-result-index={index}
-                minimal
-                disabled={actionsDisabled}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  setSelectedIndex(index);
-                  chooseGif(gif);
-                }}
-              >
-                {image ? <img src={image} alt="" /> : "GIF"}
-              </Button>
-            );
-          })}
+          {gifColumns.map((column, columnIndex) => (
+            <div
+              key={columnIndex}
+              className="roamjs-giphy-column"
+              role="presentation"
+            >
+              {resultState === "loading"
+                ? [1, 2].map((row) => (
+                    <div
+                      key={row}
+                      className={`roamjs-giphy-skeleton ${Classes.SKELETON}`}
+                      aria-hidden="true"
+                    />
+                  ))
+                : column.map(({ gif, index }) => {
+                    const image = [
+                      gif.images.fixed_height,
+                      gif.images.fixed_width_small,
+                      gif.images.preview_gif,
+                    ].find((preview) => preview?.url);
+                    return (
+                      <Button
+                        key={gif.id}
+                        id={`roamjs-giphy-option-${index}`}
+                        className="roamjs-giphy-option"
+                        role="option"
+                        tabIndex={-1}
+                        aria-label={gif.title || `GIF ${index + 1}`}
+                        aria-selected={index === selectedIndex}
+                        data-giphy-result-index={index}
+                        minimal
+                        disabled={actionsDisabled}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setSelectedIndex(index);
+                          chooseGif(gif);
+                        }}
+                      >
+                        {image ? (
+                          <img
+                            src={image.url}
+                            width={image.width}
+                            height={image.height}
+                            alt=""
+                          />
+                        ) : (
+                          "GIF"
+                        )}
+                      </Button>
+                    );
+                  })}
+            </div>
+          ))}
         </div>
-        {resultState === "loading" ? (
-          <div className="roamjs-giphy-grid" aria-hidden="true">
-            {Array.from({ length: 8 }, (_, index) => (
-              <div
-                key={index}
-                className={`roamjs-giphy-skeleton ${Classes.SKELETON}`}
-              />
-            ))}
-          </div>
-        ) : null}
       </div>
       {feedback ? (
         <div className="roamjs-giphy-feedback">

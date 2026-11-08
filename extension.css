@@ -83,38 +83,46 @@ body:has(.roam-app.bp3-dark, .roam-body.bp3-dark)
 
 .roamjs-giphy-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1px;
 }
 
-.roamjs-giphy-skeleton,
-.roamjs-giphy-option.bp3-button {
-  width: 100%;
+.roamjs-giphy-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.roamjs-giphy-skeleton {
   aspect-ratio: 4 / 3;
+  border-radius: 0;
+}
+
+.roamjs-giphy-option.bp3-button {
+  display: block;
+  width: 100%;
   min-width: 0;
   padding: 0;
   overflow: hidden;
-  border-radius: 4px;
-  background-color: var(--giphy-footer);
+  border-radius: 0;
 }
 
-.roamjs-giphy-option.bp3-button > .bp3-button-text {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
+.roamjs-giphy-option.bp3-button > .bp3-button-text,
 .roamjs-giphy-option.bp3-button img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+}
+
+.roamjs-giphy-option.bp3-button img {
+  height: auto;
 }
 
 .roamjs-giphy-option.bp3-button[aria-selected="true"],
 .roamjs-giphy-option.bp3-button:focus-visible {
   outline: 2px solid var(--giphy-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 .roamjs-giphy-feedback {
@@ -174,10 +182,6 @@ body:has(.roam-app.bp3-dark, .roam-body.bp3-dark)
 }
 
 @media (max-width: 600px) {
-  .roamjs-giphy-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .roamjs-giphy-footer .roamjs-giphy-shortcuts,
   .roamjs-giphy-footer kbd {
     display: none;
