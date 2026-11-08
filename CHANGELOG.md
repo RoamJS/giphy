@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Keep the previous GIF results in view while searching and after a failed search.
+- Add a visible Copy GIF button with confirmation and a manual copy fallback.
+- Fit the picker grid and controls to narrow windows and follow Roam’s theme.
+
 ## [1.3.0] - 2026-08-23
 
 ### Added

@@ -1,0 +1,197 @@
+.roamjs-giphy-dialog.bp3-dialog {
+  --giphy-surface: var(--roamjs-surface, var(--cdt-popover-surface, #fff));
+  --giphy-text: var(--roamjs-text, var(--cdt-primary-text, #182026));
+  --giphy-input: var(--roamjs-input, var(--cdt-input-surface, #fff));
+  --giphy-muted: var(--roamjs-muted, var(--cdt-secondary-text, #526675));
+  --giphy-border: var(--roamjs-border, var(--cdt-border, #d3d4d4));
+  --giphy-footer: var(--roamjs-footer, var(--cdt-elevated-surface, #ebeceb));
+  --giphy-focus: var(--roamjs-focus, var(--cdt-accent, #106ba3));
+  --giphy-danger: var(--roamjs-danger, #a82a30);
+  position: relative;
+  width: min(960px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  margin: 12px 0;
+  padding-bottom: 0;
+  overflow: hidden;
+  background: var(--giphy-surface);
+  color: var(--giphy-text);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+}
+
+.roamjs-giphy-dialog.bp3-dialog.bp3-dark,
+:is(.bp3-dark, .roamjs-custom-dark-theme) .roamjs-giphy-dialog.bp3-dialog,
+body:has(.roam-app.bp3-dark, .roam-body.bp3-dark)
+  .roamjs-giphy-dialog.bp3-dialog {
+  --giphy-surface: var(--roamjs-surface, var(--cdt-popover-surface, #293742));
+  --giphy-text: var(--roamjs-text, var(--cdt-primary-text, #f5f8fa));
+  --giphy-input: var(--roamjs-input, var(--cdt-input-surface, #202b33));
+  --giphy-muted: var(--roamjs-muted, var(--cdt-secondary-text, #bbcbd6));
+  --giphy-border: var(--roamjs-border, var(--cdt-border, #536878));
+  --giphy-footer: var(--roamjs-footer, var(--cdt-elevated-surface, #344552));
+  --giphy-focus: var(--roamjs-focus, var(--cdt-accent, #8abbff));
+  --giphy-danger: var(--roamjs-danger, #ffb5b8);
+}
+
+.roamjs-giphy-dialog .bp3-dialog-header {
+  background: var(--giphy-surface);
+}
+
+.roamjs-giphy-dialog .bp3-heading {
+  color: var(--giphy-text);
+}
+
+.roamjs-giphy-search {
+  padding: 12px 12px 0;
+}
+
+.roamjs-giphy-dialog .bp3-input {
+  background: var(--giphy-input);
+  color: var(--giphy-text);
+}
+
+.roamjs-giphy-dialog .bp3-input::placeholder,
+.roamjs-giphy-dialog .bp3-input-group > .bp3-icon,
+.roamjs-giphy-dialog .bp3-button.bp3-minimal > .bp3-icon {
+  color: var(--giphy-muted);
+}
+
+.roamjs-giphy-status {
+  min-height: 34px;
+  flex-shrink: 0;
+  padding: 0 12px;
+  color: var(--giphy-muted);
+  font-size: 12px;
+}
+
+.roamjs-giphy-status > .bp3-button {
+  color: var(--giphy-text);
+}
+
+.roamjs-giphy-status > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roamjs-giphy-results {
+  height: min(560px, calc(100vh - 175px));
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 12px 12px;
+}
+
+.roamjs-giphy-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1px;
+}
+
+.roamjs-giphy-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.roamjs-giphy-skeleton {
+  aspect-ratio: 4 / 3;
+  border-radius: 0;
+}
+
+.roamjs-giphy-option.bp3-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.roamjs-giphy-option.bp3-button > .bp3-button-text,
+.roamjs-giphy-option.bp3-button img {
+  display: block;
+  width: 100%;
+}
+
+.roamjs-giphy-option.bp3-button img {
+  height: auto;
+}
+
+.roamjs-giphy-option.bp3-button[aria-selected="true"],
+.roamjs-giphy-option.bp3-button:focus-visible {
+  outline: 2px solid var(--giphy-focus);
+  outline-offset: -2px;
+}
+
+.roamjs-giphy-feedback {
+  position: absolute;
+  z-index: 1;
+  bottom: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px;
+  border: 1px solid var(--giphy-border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+  background: var(--giphy-surface);
+  color: var(--giphy-text);
+}
+
+.roamjs-giphy-feedback [role="alert"] {
+  color: var(--giphy-danger);
+}
+
+.roamjs-giphy-feedback .bp3-input-group {
+  margin-top: 4px;
+}
+
+.roamjs-giphy-footer {
+  flex-shrink: 0;
+  justify-content: flex-end;
+  min-height: 30px;
+  padding: 0 8px;
+  border-top: 1px solid var(--giphy-border);
+  background: var(--giphy-footer);
+  color: var(--giphy-text);
+  font-size: 12px;
+}
+
+.roamjs-giphy-footer .roamjs-giphy-copy.bp3-button {
+  color: var(--giphy-text);
+}
+
+.roamjs-giphy-footer .roamjs-giphy-copy.bp3-button:disabled {
+  opacity: 0.55;
+}
+
+.roamjs-giphy-inserting:empty {
+  display: none;
+}
+
+.roamjs-giphy-footer kbd {
+  padding: 0 3px;
+  border: 1px solid var(--giphy-border);
+  border-radius: 3px;
+  background: var(--giphy-surface);
+  color: var(--giphy-text);
+  font-size: 11px;
+}
+
+@media (max-width: 600px) {
+  .roamjs-giphy-footer .roamjs-giphy-shortcuts,
+  .roamjs-giphy-footer kbd {
+    display: none;
+  }
+
+  .roamjs-giphy-footer .roamjs-giphy-copy.bp3-button {
+    min-height: 44px;
+  }
+
+  .roamjs-giphy-feedback {
+    bottom: 54px;
+  }
+}
